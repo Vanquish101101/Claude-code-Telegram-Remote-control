@@ -32,6 +32,6 @@ $hermesGatewayStatus = hermes gateway status 2>&1
 Write-Host $hermesGatewayStatus
 
 Write-Host "`n== Claude Code Telegram Bot ==" -ForegroundColor Cyan
-Write-Host "Claude Code Telegram Bot running from: C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram [Remote control]" -ForegroundColor Yellow
+Write-Host "Claude Code Telegram Bot running from: C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)" -ForegroundColor Yellow
 Write-Host "Run check-status there for Claude Telegram bot diagnostics." -ForegroundColor Yellow
 Get-Service -Name ClaudeTelegramBot, ClaudeMcpHealthMonitor -ErrorAction SilentlyContinue | Select-Object Name, Status, StartType

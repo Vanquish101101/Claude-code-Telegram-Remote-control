@@ -2,7 +2,7 @@
 # Checks MCP servers and bot health every 25 seconds
 # Sends Telegram notifications for state changes
 
-$legacyEnvPath = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram [Remote control]\.claude-telegram\.env"
+$legacyEnvPath = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)\.claude-telegram\.env"
 $officialEnvPath = "$env:USERPROFILE\.claude\channels\telegram\.env"
 $chatId        = "1064521326"
 $botServiceName = "ClaudeTelegramBot"
