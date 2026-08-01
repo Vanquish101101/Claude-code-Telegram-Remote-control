@@ -1,0 +1,13 @@
+.secrets/
+logs/
+*.log
+*.tmp
+*.local.*
+.claude/task_done
+.claude/stop_now
+.claude/channels/
+.claude/**/*.env
+.claude-telegram/.env
+.claude-telegram/*.db
+*.db
+.env
