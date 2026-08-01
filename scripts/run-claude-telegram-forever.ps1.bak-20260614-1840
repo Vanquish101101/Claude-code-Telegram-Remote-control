@@ -1,0 +1,26 @@
+﻿$botExe  = "C:\Users\Unknown\AppData\Local\hermes\hermes-agent\venv\Scripts\claude-telegram-bot.exe"
+$config  = "C:\Users\Unknown\DOCUME~1\Projects\CLAUDE~1\CLAUDE~2\ENV~1"
+$logDir  = "C:\Users\Unknown\AppData\Local\Temp\claude-telegram"
+$logFile = "$logDir\restart.log"
+$stdOut  = "$logDir\bot-stdout.log"
+$stdErr  = "$logDir\bot-stderr.log"
+
+# Ensure log dir exists (may not exist after reboot)
+$null = New-Item -ItemType Directory -Force $logDir -ErrorAction SilentlyContinue
+
+while ($true) {
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content $logFile "$ts  [START] Launching claude-telegram-bot"
+
+    $p = Start-Process -FilePath $botExe `
+        -ArgumentList "--config-file `"$config`"" `
+        -RedirectStandardOutput $stdOut `
+        -RedirectStandardError  $stdErr `
+        -NoNewWindow -PassThru
+    $p.WaitForExit()
+    $exitCode = $p.ExitCode
+
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content $logFile "$ts  [EXIT]  Bot exited (code $exitCode). Restarting in 10s..."
+    Start-Sleep -Seconds 10
+}

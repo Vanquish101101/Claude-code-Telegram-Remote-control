@@ -1,0 +1,21 @@
+# Чеклист урока
+
+- [ ] Открыт Telegram и создан бот через `@BotFather`.
+- [ ] Токен Telegram не сохранен в файлах урока.
+- [ ] При необходимости выполнен импорт `.\scripts\import-project-settings.ps1`.
+- [ ] Выполнено `.\scripts\check-status.ps1`.
+- [ ] Telegram добавлен в OpenClaw через `.\scripts\configure-openclaw-telegram.ps1`.
+- [ ] Telegram добавлен в Hermes через `hermes gateway setup`.
+- [ ] Установлен Claude Code Telegram plugin: `claude plugin list`.
+- [ ] Bun установлен и доступен для Telegram MCP-сервера.
+- [ ] Telegram токен для Claude Code импортирован через `.\scripts\configure-claude-telegram.ps1`.
+- [ ] Claude Code запущен с Telegram-каналом через `.\scripts\start-claude-telegram-bridge.ps1`.
+- [ ] В Claude Code выполнено `/telegram:access pair <code>`.
+- [ ] После pairing включен allowlist: `/telegram:access policy allowlist`.
+- [ ] Запущен OpenClaw gateway через `.\scripts\start-openclaw-gateway.ps1`.
+- [ ] Запущен Hermes gateway через `.\scripts\start-hermes-gateway.ps1`.
+- [ ] `openclaw status` показывает reachable gateway.
+- [ ] `hermes gateway status` показывает running gateway.
+- [ ] В Telegram отправлена первая задача ассистенту.
+- [ ] Проверены MCP-команды: `hermes mcp list` и `openclaw mcp list`.
+- [ ] Понятны корневые папки: урок, OpenClaw, Hermes config, Hermes app, Claude MCP.
