@@ -2,7 +2,7 @@
 # через NSSM — вместо Scheduled Tasks. ЗАПУСКАТЬ ОТ ИМЕНИ АДМИНИСТРАТОРА.
 
 $nssm = "C:\Users\AI Developments\AppData\Local\Microsoft\WinGet\Packages\NSSM.NSSM_Microsoft.Winget.Source_8wekyb3d8bbwe\nssm-2.24-101-g897c7ad\win64\nssm.exe"
-$projectDir = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram [Remote control]"
+$projectDir = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)"
 $botExe = "C:\Users\AI Developments\AppData\Local\hermes\hermes-agent\venv\Scripts\claude-telegram-bot.exe"
 $configFile = "$projectDir\.claude-telegram\.env"
 $logDir = "C:\Users\AI Developments\AppData\Local\foresight-bots\logs\claude-telegram"

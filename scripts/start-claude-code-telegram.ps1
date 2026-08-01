@@ -5,8 +5,8 @@
 $ErrorActionPreference = "Stop"
 
 $botExe = "C:\Users\AI Developments\AppData\Local\hermes\hermes-agent\venv\Scripts\claude-telegram-bot.exe"
-$configFile = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram [Remote control]\.claude-telegram\.env"
-$dataDir = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram [Remote control]\.claude-telegram"
+$configFile = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)\.claude-telegram\.env"
+$dataDir = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)\.claude-telegram"
 
 if (-not (Test-Path -LiteralPath $botExe)) {
   Write-Host "claude-telegram-bot.exe not found. Reinstall:" -ForegroundColor Red
