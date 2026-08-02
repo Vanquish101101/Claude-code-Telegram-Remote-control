@@ -72,8 +72,15 @@ class Settings(BaseSettings):
         None,
         description="Anthropic API key for SDK (optional if CLI logged in)",
     )
-    claude_model: str = Field(
-        "claude-3-5-sonnet-20241022", description="Claude model to use"
+    claude_model: Optional[str] = Field(
+        None,
+        description=(
+            "Claude model to use. None means inherit whatever the Claude CLI is "
+            "configured with (~/.claude/settings.json), which is almost always what "
+            "you want -- pinning a model id here silently overrides it. Accepts "
+            "aliases like 'opus'/'sonnet'/'haiku' or a full model id. Users can "
+            "override per-session with /model."
+        ),
     )
     claude_max_turns: int = Field(
         DEFAULT_CLAUDE_MAX_TURNS, description="Max conversation turns"

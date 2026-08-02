@@ -290,6 +290,7 @@ class MessageOrchestrator:
             ("new", self.agentic_new),
             ("status", self.agentic_status),
             ("verbose", self.agentic_verbose),
+            ("model", self.agentic_model),
             ("repo", self.agentic_repo),
         ]
         if self.settings.enable_project_threads:
@@ -387,6 +388,7 @@ class MessageOrchestrator:
                 BotCommand("new", "Start a fresh session"),
                 BotCommand("status", "Show session status"),
                 BotCommand("verbose", "Set output verbosity (0/1/2)"),
+                BotCommand("model", "Switch model (opus/sonnet/haiku)"),
                 BotCommand("repo", "List repos / switch workspace"),
             ]
             if self.settings.enable_project_threads:
@@ -545,6 +547,71 @@ class MessageOrchestrator:
         labels = {0: "quiet", 1: "normal", 2: "detailed"}
         await update.message.reply_text(
             f"Verbosity set to <b>{level}</b> ({labels[level]})",
+            parse_mode="HTML",
+        )
+
+    # Aliases the CLI resolves itself, so new model releases work without a
+    # code change here. A full model id can also be passed through as-is.
+    _MODEL_ALIASES = ("opus", "sonnet", "haiku")
+
+    def _get_model(self, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
+        """Return effective model: per-user override, configured default, or None.
+
+        None means "leave it alone" -- the Claude CLI then uses whatever
+        ~/.claude/settings.json says, which is the behaviour this bot had before
+        the model was selectable at all.
+        """
+        user_override = context.user_data.get("claude_model")
+        if user_override:
+            return str(user_override)
+        return self.settings.claude_model
+
+    async def agentic_model(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Switch the model for this chat: /model [opus|sonnet|haiku|<id>|reset]."""
+        args = update.message.text.split()[1:] if update.message.text else []
+
+        if not args:
+            current = self._get_model(context)
+            shown = current if current else "по умолчанию (настройка Claude CLI)"
+            source = "выбрана вами" if context.user_data.get("claude_model") else "унаследована"
+            await update.message.reply_text(
+                f"Модель: <b>{shown}</b> ({source})\n\n"
+                "Переключить: <code>/model opus|sonnet|haiku</code>\n"
+                "Можно указать полный id, например "
+                "<code>/model claude-sonnet-4-5-20250929</code>\n"
+                "Вернуть наследование: <code>/model reset</code>",
+                parse_mode="HTML",
+            )
+            return
+
+        choice = args[0].strip().lower()
+
+        if choice in ("reset", "default", "сброс"):
+            context.user_data.pop("claude_model", None)
+            inherited = self.settings.claude_model or "настройка Claude CLI"
+            await update.message.reply_text(
+                f"Переключение снято. Теперь используется <b>{inherited}</b>.",
+                parse_mode="HTML",
+            )
+            return
+
+        # Anything that is not an alias is passed through unvalidated: model ids
+        # change faster than this bot ships, and the CLI reports a bad one clearly.
+        if choice not in self._MODEL_ALIASES and not choice.startswith("claude-"):
+            await update.message.reply_text(
+                "Не похоже на модель. Ожидается "
+                "<code>opus</code>, <code>sonnet</code>, <code>haiku</code>, "
+                "полный id вида <code>claude-...</code> или <code>reset</code>.",
+                parse_mode="HTML",
+            )
+            return
+
+        context.user_data["claude_model"] = choice
+        await update.message.reply_text(
+            f"Модель переключена на <b>{choice}</b>.\n"
+            "Действует со следующего сообщения, текущая сессия сохраняется.",
             parse_mode="HTML",
         )
 
@@ -749,6 +816,7 @@ class MessageOrchestrator:
                 session_id=session_id,
                 on_stream=on_stream,
                 force_new=force_new,
+                model=self._get_model(context),
             )
 
             # New session created successfully — clear the one-shot flag
@@ -952,6 +1020,7 @@ class MessageOrchestrator:
                 session_id=session_id,
                 on_stream=on_stream,
                 force_new=force_new,
+                model=self._get_model(context),
             )
 
             if force_new:
@@ -1046,6 +1115,7 @@ class MessageOrchestrator:
                     session_id=session_id,
                     on_stream=on_stream,
                     force_new=force_new,
+                    model=self._get_model(context),
                 )
             finally:
                 heartbeat.cancel()
