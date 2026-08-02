@@ -156,6 +156,7 @@ class ClaudeSDKManager:
         session_id: Optional[str] = None,
         continue_session: bool = False,
         stream_callback: Optional[Callable[[StreamUpdate], None]] = None,
+        model: Optional[str] = None,
     ) -> ClaudeResponse:
         """Execute Claude Code command via SDK."""
         start_time = asyncio.get_event_loop().time()
@@ -165,12 +166,17 @@ class ClaudeSDKManager:
             working_directory=str(working_directory),
             session_id=session_id,
             continue_session=continue_session,
+            model=model or self.config.claude_model or "cli-default",
         )
 
         try:
             # Build Claude Agent options
             cli_path = find_claude_cli(self.config.claude_cli_path)
+            # Per-request model beats the configured default; both being None
+            # leaves the CLI's own setting alone, which is the sane default.
+            effective_model = model or self.config.claude_model
             options = ClaudeAgentOptions(
+                model=effective_model,
                 max_turns=self.config.claude_max_turns,
                 cwd=str(working_directory),
                 allowed_tools=self.config.claude_allowed_tools,
