@@ -40,6 +40,17 @@ $bstr   = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 try {
     $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
 
+    # Windows refuses to log a service on with a blank password, and it refuses
+    # silently: Change() succeeds, then the service will not start. Stop here
+    # rather than leaving the services broken.
+    if ([string]::IsNullOrEmpty($plain)) {
+        Write-Host "`nEmpty password - Windows will not run a service under an account" -ForegroundColor Red
+        Write-Host "with no password. Nothing was changed."
+        Write-Host "`nEither set a password on this account, or keep the current setup"
+        Write-Host "(LocalSystem with a profile override), which already works."
+        exit 1
+    }
+
     # --- 1. Grant "Log on as a service" -----------------------------------
     # sc.exe/CIM do not grant SeServiceLogonRight; without it the service will
     # fail to start with error 1069 (logon failure).
@@ -84,17 +95,39 @@ try {
             continue
         }
 
-        # The LocalSystem profile override is no longer needed - as the real user,
-        # %USERPROFILE% already resolves correctly. Leaving it would just be a
-        # second, silently diverging source of truth.
+        # Prove the account actually starts the service BEFORE dropping the
+        # LocalSystem profile override - otherwise a rejected logon leaves the
+        # bot with neither identity and no way to find its OAuth session.
+        $started = $false
+        try {
+            Restart-Service -Name $svc -Force -ErrorAction Stop
+            Start-Sleep -Seconds 4
+            $started = (Get-Service -Name $svc).Status -eq "Running"
+        } catch {
+            Write-Host "  service refused to start: $($_.Exception.Message)" -ForegroundColor Red
+        }
+
+        if (-not $started) {
+            Write-Host "  rolling back to LocalSystem" -ForegroundColor Yellow
+            $s2 = Get-CimInstance Win32_Service -Filter "Name='$svc'"
+            Invoke-CimMethod -InputObject $s2 -MethodName Change -Arguments @{
+                StartName = "LocalSystem"; StartPassword = ""
+            } | Out-Null
+            Start-Service -Name $svc -ErrorAction SilentlyContinue
+            Write-Host "  restored: $((Get-Service -Name $svc).Status)" -ForegroundColor Yellow
+            continue
+        }
+
+        # Started cleanly as the user, so the override is now redundant - and
+        # leaving it would be a second, silently diverging source of truth.
         $k = "HKLM:\SYSTEM\CurrentControlSet\Services\$svc\Parameters"
         if (Get-ItemProperty -Path $k -Name AppEnvironmentExtra -ErrorAction SilentlyContinue) {
             Remove-ItemProperty -Path $k -Name AppEnvironmentExtra
+            Restart-Service -Name $svc -Force
+            Start-Sleep -Seconds 4
             Write-Host "  removed AppEnvironmentExtra override"
         }
 
-        Restart-Service -Name $svc -Force
-        Start-Sleep -Seconds 4
         $after = Get-CimInstance Win32_Service -Filter "Name='$svc'"
         Write-Host ("  now: {0}, running as {1}" -f $after.State, $after.StartName) -ForegroundColor Green
     }
