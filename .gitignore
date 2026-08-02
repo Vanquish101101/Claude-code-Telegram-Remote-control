@@ -17,3 +17,4 @@ logs/
 .venv/
 bot-src/htmlcov/
 bot-src/.coverage
+.mcp.json
