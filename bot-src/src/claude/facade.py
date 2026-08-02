@@ -152,12 +152,16 @@ class ClaudeIntegration:
                     model=model,
                 )
             except Exception as resume_error:
-                # If resume failed (e.g., session expired on Claude's side),
-                # retry as a fresh session
-                if (
-                    should_continue
-                    and "no conversation found" in str(resume_error).lower()
-                ):
+                # If resume failed, retry as a fresh session.
+                #
+                # Any failure while resuming is treated as a dead session, not
+                # just the "no conversation found" wording this used to match:
+                # the CLI reports a missing session as a bare exit code 1 with
+                # nothing usable on stderr, so the narrow check never fired and
+                # every stale session id became a hard error the user could only
+                # clear by hand with /new. A pointless retry on a genuinely
+                # unrelated failure is far cheaper than that.
+                if should_continue:
                     logger.warning(
                         "Session resume failed, starting fresh session",
                         failed_session_id=claude_session_id,
