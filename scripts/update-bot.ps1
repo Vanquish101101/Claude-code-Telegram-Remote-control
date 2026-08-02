@@ -51,15 +51,35 @@ if ($wasRunning) {
 }
 
 try {
+    # An install that dies partway (usually because the bot still held
+    # claude-telegram-bot.exe) leaves a ~-prefixed stub behind. pip then refuses
+    # to install over it and only says "Ignoring invalid distribution", so the
+    # service comes back up with no package at all. Clear it first.
+    $sitePkgs = Join-Path $venv "Lib\site-packages"
+    $stubs = @(Get-ChildItem -LiteralPath $sitePkgs -Directory -Filter "~*" -Force -ErrorAction SilentlyContinue)
+    if ($stubs) {
+        Write-Host "`nRemoving broken leftovers from an earlier install:" -ForegroundColor Yellow
+        foreach ($s in $stubs) {
+            Write-Host "  $($s.Name)"
+            Remove-Item -LiteralPath $s.FullName -Recurse -Force
+        }
+    }
+
     Write-Host "`nInstalling from bot-src..." -ForegroundColor Cyan
     # --no-deps: dependencies are already pinned in the venv and unchanged;
     # reinstalling them turns a 5-second update into a 2-minute one.
-    & "$venv\Scripts\python.exe" -m pip install --quiet --force-reinstall --no-deps $src
+    # Not --quiet: it hid the "invalid distribution" warning above, and the only
+    # symptom left was a service that would not start.
+    & "$venv\Scripts\python.exe" -m pip install --force-reinstall --no-deps $src |
+        Where-Object { $_ -match "Successfully|ERROR|WARNING" }
     if ($LASTEXITCODE -ne 0) { throw "pip install failed with exit code $LASTEXITCODE" }
-    Write-Host "  installed" -ForegroundColor Green
 
-    $ver = & "$venv\Scripts\python.exe" -c "import importlib.metadata as m; print(m.version('claude-code-telegram'))"
-    Write-Host "  version: $ver"
+    # pip can report success and still leave the package unimportable. Check
+    # before handing the service back, so a broken build is caught here rather
+    # than as a mysterious start failure.
+    $ver = & "$venv\Scripts\python.exe" -c "import importlib.metadata as m; print(m.version('claude-code-telegram'))" 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "package is not importable after install: $ver" }
+    Write-Host "  installed, version $ver" -ForegroundColor Green
 }
 finally {
     if ($wasRunning) {

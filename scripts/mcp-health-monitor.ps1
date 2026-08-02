@@ -10,8 +10,14 @@ $checkInterval = 25
 $logFile       = "C:\Users\AI Developments\AppData\Local\Temp\mcp-monitor\monitor.log"
 $claudeExe     = "C:\Users\AI Developments\.local\bin\claude.exe"
 
-# Servers to monitor (plugin is always down - exclude it)
-$monitoredServers = @("supabase", "smithery", "notion")
+# Servers to monitor. plugin:telegram is excluded on purpose: its token was
+# removed so it cannot fight the main bot over getUpdates (409 Conflict), so it
+# is permanently down by design and would only generate noise.
+# knowledge-factory is excluded until Digital brain is deployed on this machine.
+$monitoredServers = @(
+    "supabase", "playwright", "context7", "apify", "perplexity",
+    "firecrawl", "n8n", "smithery", "notion"
+)
 
 # --- Helpers ---
 
@@ -90,10 +96,18 @@ function Get-MCPHealth {
         $proc.WaitForExit()
         $raw = $stdout + $stderr
         foreach ($line in ($raw -split "`n")) {
-            if ($line -match "^\s*([\w\-]+)\s*:.*?(Connected|Failed to connect|Failed)") {
-                $name = $Matches[1]
-                $up   = $Matches[2] -eq "Connected"
-                $results[$name] = $up
+            # "Needs authentication" must be matched explicitly. It used to fall
+            # through every pattern here, which dropped the server from the
+            # results entirely and left the monitor silent about an expired
+            # OAuth token - the one failure that cannot fix itself, because a
+            # Windows service cannot open a browser.
+            if ($line -match "^\s*([\w\-]+)\s*:.*?(Connected|Needs authentication|Failed to connect|Failed)") {
+                $name  = $Matches[1]
+                $state = $Matches[2]
+                $results[$name] = @{
+                    Up          = ($state -eq "Connected")
+                    NeedsAuth   = ($state -eq "Needs authentication")
+                }
             }
         }
     } catch { }
@@ -145,8 +159,9 @@ while ($true) {
     $mcpStatus = Get-MCPHealth
 
     foreach ($server in ($mcpStatus.Keys | Where-Object { $monitoredServers -contains $_ })) {
-        $isUp  = $mcpStatus[$server]
-        $wasUp = $prevMcpStatus[$server]
+        $isUp      = $mcpStatus[$server].Up
+        $needsAuth = $mcpStatus[$server].NeedsAuth
+        $wasUp     = $prevMcpStatus[$server].Up
 
         if (-not $mcpDownCount.ContainsKey($server)) { $mcpDownCount[$server] = 0 }
 
@@ -154,13 +169,21 @@ while ($true) {
             $mcpDownCount[$server]++
             $count = $mcpDownCount[$server]
 
+            # An expired token needs the user at a browser; nothing here can fix
+            # it, so say so plainly instead of reporting a generic outage.
+            $what = if ($needsAuth) {
+                "trebuet avtorizacii - token istyok. Otkroy /mcp i voydi zanovo."
+            } else {
+                "nedostupen. Ishchu podklyucheniye..."
+            }
+
             if ($wasUp -ne $false) {
-                Write-Log "[MCP_DOWN] $server disconnected"
-                Send-TG "MCP server '$server' nedostupen. Ishchu podklyucheniye..."
+                Write-Log "[MCP_DOWN] $server down (needsAuth=$needsAuth)"
+                Send-TG "MCP server '$server' $what"
             } elseif ($count % 4 -eq 0) {
                 $mins = [math]::Round($count * $checkInterval / 60, 0)
-                Write-Log "[MCP_WAIT] $server still down (${mins}m)"
-                Send-TG "MCP '$server' vsyo eshche nedostupen (${mins} min)."
+                Write-Log "[MCP_WAIT] $server still down (${mins}m, needsAuth=$needsAuth)"
+                Send-TG "MCP '$server' vsyo eshche $what (${mins} min)."
             }
 
         } else {
