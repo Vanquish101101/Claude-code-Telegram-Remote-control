@@ -11,3 +11,6 @@ logs/
 .claude-telegram/*.db
 *.db
 .env
+*.db-shm
+*.db-wal
+*.db-journal
