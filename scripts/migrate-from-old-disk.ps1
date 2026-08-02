@@ -101,5 +101,26 @@ if (-not $SkipMcp) {
     }
 }
 
+# --- 3. Official Telegram channel config -----------------------------------
+
+if (-not $SkipFiles) {
+    Write-Host "`n=== .claude\channels\telegram ===" -ForegroundColor Cyan
+    # mcp-health-monitor.ps1 falls back to this .env when the project one is missing,
+    # and the official telegram plugin reads it. Holds the bot token, hence manual.
+    $src = Join-Path $oldProfile ".claude\channels\telegram"
+    $dst = "$env:USERPROFILE\.claude\channels\telegram"
+
+    if (Test-Path -LiteralPath $src) {
+        New-Item -ItemType Directory -Force -Path $dst | Out-Null
+        Get-ChildItem -LiteralPath $src -File -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $dst -Force
+            Write-Host ("  copied  {0,-20} {1,6} b" -f $_.Name, $_.Length) -ForegroundColor Green
+        }
+        Write-Host "  -> $dst"
+    } else {
+        Write-Host "  not found: $src" -ForegroundColor Yellow
+    }
+}
+
 Write-Host "`nVerify with:  claude mcp list" -ForegroundColor Cyan
 Write-Host "Servers needing a rebuild on this machine: whisper, deepgram, redis, video-pipeline"
