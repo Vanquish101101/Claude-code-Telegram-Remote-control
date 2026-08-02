@@ -1,4 +1,4 @@
-# Installs the legacy Telegram bot and the MCP Health Monitor as real Windows services
+﻿# Installs the legacy Telegram bot and the MCP Health Monitor as real Windows services
 # via NSSM, replacing the old Scheduled Tasks. RUN AS ADMINISTRATOR.
 #
 # NOTE: ASCII-only on purpose. Windows PowerShell 5.1 reads .ps1 files as ANSI unless
@@ -6,7 +6,7 @@
 
 $nssm = "C:\Users\AI Developments\AppData\Local\Microsoft\WinGet\Packages\NSSM.NSSM_Microsoft.Winget.Source_8wekyb3d8bbwe\nssm-2.24-101-g897c7ad\win64\nssm.exe"
 $projectDir = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)"
-$botExe = "C:\Users\AI Developments\AppData\Local\hermes\hermes-agent\venv\Scripts\claude-telegram-bot.exe"
+$botExe = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)\.venv\Scripts\claude-telegram-bot.exe"
 $configFile = "$projectDir\.claude-telegram\.env"
 $logDir = "C:\Users\AI Developments\AppData\Local\foresight-bots\logs\claude-telegram"
 
