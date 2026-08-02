@@ -434,8 +434,15 @@ class ClaudeSDKManager:
                         tool_calls=tool_calls if tool_calls else None,
                     )
                     await stream_callback(update)
-                elif content:
-                    # Fallback for non-list content
+                elif content and not isinstance(content, list):
+                    # Fallback for non-list content only.
+                    #
+                    # A list that yielded neither text nor tool calls is not a
+                    # fallback case: it is a message made purely of thinking
+                    # blocks, whose text is empty because the reasoning is
+                    # encrypted. str() on it dumped
+                    # "ThinkingBlock(thinking='', signature='CAIS...')" straight
+                    # into the Telegram chat — noise carrying nothing readable.
                     update = StreamUpdate(
                         type="assistant",
                         content=str(content),
@@ -466,8 +473,9 @@ class ClaudeSDKManager:
                     for block in content:
                         if hasattr(block, "text"):
                             content_parts.append(block.text)
-                elif content:
-                    # Fallback for non-list content
+                elif content and not isinstance(content, list):
+                    # Fallback for non-list content only — same reason as above:
+                    # a thinking-only message must not be dumped as a repr.
                     content_parts.append(str(content))
 
         return "\n".join(content_parts)
