@@ -15,3 +15,5 @@ logs/
 *.db-wal
 *.db-journal
 .venv/
+bot-src/htmlcov/
+bot-src/.coverage
