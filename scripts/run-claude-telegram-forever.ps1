@@ -1,4 +1,4 @@
-﻿$botExe  = "C:\Users\AI Developments\AppData\Local\hermes\hermes-agent\venv\Scripts\claude-telegram-bot.exe"
+﻿$botExe  = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)\.venv\Scripts\claude-telegram-bot.exe"
 $config  = "C:\Users\AI Developments\Documents\Working environment\Claude code + Telegram (Remote control)\.claude-telegram\.env"
 $logDir  = "C:\Users\AI Developments\AppData\Local\foresight-bots\logs\claude-telegram"
 $logFile = "$logDir\restart.log"
