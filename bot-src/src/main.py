@@ -76,11 +76,20 @@ class RedactingFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.msg, str):
             record.msg = _redact(record.msg)
+        # Only touch string arguments. Casting everything to str broke records
+        # whose format string uses %d — httpx logs the HTTP status that way, so
+        # every "HTTP Request: ..." line silently vanished instead of being
+        # redacted, which looked like the bot had stopped polling.
         if record.args:
             if isinstance(record.args, dict):
-                record.args = {k: _redact(str(v)) for k, v in record.args.items()}
+                record.args = {
+                    k: (_redact(v) if isinstance(v, str) else v)
+                    for k, v in record.args.items()
+                }
             else:
-                record.args = tuple(_redact(str(a)) for a in record.args)
+                record.args = tuple(
+                    _redact(a) if isinstance(a, str) else a for a in record.args
+                )
         return True
 
 
