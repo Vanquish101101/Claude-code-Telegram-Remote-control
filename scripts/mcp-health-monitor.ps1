@@ -60,6 +60,23 @@ function Send-TG($text) {
     }
 }
 
+function Remove-OldLogs {
+    # NSSM rotates the service logs but never deletes the rotated copies, so
+    # they accumulate indefinitely - 50 files had piled up before this existed.
+    # They also used to contain the bot token in clear text, which makes an
+    # unbounded pile of them worse than merely untidy.
+    param([int]$KeepDays = 7)
+    $dir = "$env:LOCALAPPDATA\foresight-bots\logs\claude-telegram"
+    if (-not (Test-Path -LiteralPath $dir)) { return }
+    $cutoff = (Get-Date).AddDays(-$KeepDays)
+    $old = Get-ChildItem -LiteralPath $dir -File -EA SilentlyContinue |
+           Where-Object { $_.LastWriteTime -lt $cutoff -and $_.Name -match '-\d{8}T\d{6}' }
+    foreach ($f in $old) {
+        Remove-Item -LiteralPath $f.FullName -Force -EA SilentlyContinue
+        Write-Log "[CLEANUP] removed old log $($f.Name)"
+    }
+}
+
 function Get-BotProcess {
     return Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*claude-telegram-bot*" }
 }
@@ -123,10 +140,32 @@ $prevBotAlive  = $null
 $prevMcpStatus = @{}
 $mcpDownCount  = @{}
 $botCrashCount = 0
+$lastCleanup   = [datetime]::MinValue
+$lastTick      = Get-Date
 
 # --- Main loop ---
 
 while ($true) {
+
+    # === 0. Housekeeping ===
+
+    # A gap far larger than the sleep interval means this loop was not running -
+    # the machine suspended. Worth recording: a 2h gap once went unnoticed, and
+    # for all that time nothing was watching the bot. NSSM still restarts a
+    # crashed process, but a hung-yet-alive one would go unnoticed.
+    $now = Get-Date
+    $gap = ($now - $lastTick).TotalSeconds
+    if ($gap -gt ($checkInterval * 3)) {
+        $mins = [math]::Round($gap / 60)
+        Write-Log "[GAP] monitor was not running for ${mins}m (machine asleep?)"
+        Send-TG "Monitor prostoyal ${mins} min - pohozhe, mashina spala. Bot vsyo eto vremya byl bez prismotra."
+    }
+    $lastTick = $now
+
+    if (($now - $lastCleanup).TotalHours -ge 24) {
+        Remove-OldLogs -KeepDays 7
+        $lastCleanup = $now
+    }
 
     # === 1. Bot watchdog ===
 

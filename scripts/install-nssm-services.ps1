@@ -33,7 +33,10 @@ foreach ($svc in @("ClaudeTelegramBot","ClaudeMcpHealthMonitor")) {
 & $nssm set ClaudeTelegramBot AppRotateFiles   1        | Out-Null
 & $nssm set ClaudeTelegramBot AppRotateOnline  1        | Out-Null
 & $nssm set ClaudeTelegramBot AppRotateBytes   10485760 | Out-Null
-& $nssm set ClaudeTelegramBot Start            SERVICE_AUTO_START | Out-Null
+# Delayed, not plain auto: with plain SERVICE_AUTO_START the bot starts before
+# the network is up and dies with NetworkError on every single boot, recovering
+# only on NSSM's next restart cycle.
+& $nssm set ClaudeTelegramBot Start            SERVICE_DELAYED_AUTO_START | Out-Null
 & $nssm set ClaudeTelegramBot AppExit Default  Restart  | Out-Null
 & $nssm set ClaudeTelegramBot AppRestartDelay  10000    | Out-Null
 & $nssm set ClaudeTelegramBot DisplayName      "Claude Code Telegram Bot (Remote control)" | Out-Null
@@ -46,7 +49,7 @@ foreach ($svc in @("ClaudeTelegramBot","ClaudeMcpHealthMonitor")) {
 & $nssm set ClaudeMcpHealthMonitor AppRotateFiles  1        | Out-Null
 & $nssm set ClaudeMcpHealthMonitor AppRotateOnline 1        | Out-Null
 & $nssm set ClaudeMcpHealthMonitor AppRotateBytes  10485760 | Out-Null
-& $nssm set ClaudeMcpHealthMonitor Start           SERVICE_AUTO_START | Out-Null
+& $nssm set ClaudeMcpHealthMonitor Start           SERVICE_DELAYED_AUTO_START | Out-Null
 & $nssm set ClaudeMcpHealthMonitor AppExit Default Restart  | Out-Null
 & $nssm set ClaudeMcpHealthMonitor AppRestartDelay 10000    | Out-Null
 & $nssm set ClaudeMcpHealthMonitor DisplayName     "Claude MCP Health Monitor" | Out-Null

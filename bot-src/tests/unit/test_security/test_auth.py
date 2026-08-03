@@ -249,8 +249,15 @@ class TestAuthenticationManager:
         assert session is not None
         assert session.user_id == user_id
 
-        # Refresh session
-        old_activity = session.last_activity
+        # Refresh session.
+        #
+        # Backdate first instead of comparing two adjacent now() calls: the
+        # Windows system clock only ticks every ~15 ms, so both calls return the
+        # same value and a strict > comparison fails even though the code is
+        # correct. Relaxing this to >= would have hidden a refresh that never
+        # updated the field at all; backdating keeps the assertion meaningful.
+        old_activity = session.last_activity - timedelta(minutes=5)
+        session.last_activity = old_activity
         result = auth_manager.refresh_session(user_id)
         assert result is True
         assert session.last_activity > old_activity

@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import logging
+import re
 import signal
 import sys
 from pathlib import Path
@@ -40,6 +41,57 @@ from src.storage.facade import Storage
 from src.storage.session_storage import SQLiteSessionStorage
 
 
+# Secrets that must never reach a log file. The Telegram token is the urgent
+# one: python-telegram-bot talks over httpx, which logs the full request URL,
+# and the token is part of that URL — so every poll wrote it out in clear text.
+_SECRET_PATTERNS = [
+    # Telegram bot token, as it appears inside an api.telegram.org URL
+    (re.compile(r"(bot)(\d{6,12}):([\w-]{20,})"), r"\1\2:<REDACTED>"),
+    # Same token standing on its own (config dumps, error messages)
+    (re.compile(r"\b(\d{6,12}):(AA[\w-]{30,})"), r"\1:<REDACTED>"),
+    # Anthropic, Notion, Perplexity, Firecrawl, Supabase, Apify
+    (re.compile(r"\b(sk-ant-[\w-]{6})[\w-]{10,}"), r"\1<REDACTED>"),
+    (re.compile(r"\b(ntn_)[\w]{20,}"), r"\1<REDACTED>"),
+    (re.compile(r"\b(pplx-)[\w]{20,}"), r"\1<REDACTED>"),
+    (re.compile(r"\b(fc-)[a-f0-9]{20,}"), r"\1<REDACTED>"),
+    (re.compile(r"\b(sbp_)[a-f0-9]{20,}"), r"\1<REDACTED>"),
+    (re.compile(r"\b(apify_api_)[\w]{20,}"), r"\1<REDACTED>"),
+]
+
+
+def _redact(text: str) -> str:
+    for pattern, replacement in _SECRET_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
+class RedactingFilter(logging.Filter):
+    """Strips secrets from log records before anything writes them out.
+
+    Attached to the root handler rather than to our own loggers on purpose:
+    the leak came from a third-party library (httpx), so filtering only what
+    this codebase logs would have missed it entirely.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = _redact(record.msg)
+        if record.args:
+            if isinstance(record.args, dict):
+                record.args = {k: _redact(str(v)) for k, v in record.args.items()}
+            else:
+                record.args = tuple(_redact(str(a)) for a in record.args)
+        return True
+
+
+def _redact_processor(logger: Any, name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Same redaction for structlog's own pipeline."""
+    for key, value in event_dict.items():
+        if isinstance(value, str):
+            event_dict[key] = _redact(value)
+    return event_dict
+
+
 def setup_logging(debug: bool = False) -> None:
     """Configure structured logging."""
     level = logging.DEBUG if debug else logging.INFO
@@ -50,6 +102,10 @@ def setup_logging(debug: bool = False) -> None:
         format="%(message)s",
         stream=sys.stdout,
     )
+
+    redactor = RedactingFilter()
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(redactor)
 
     # Configure structlog
     structlog.configure(
@@ -62,6 +118,7 @@ def setup_logging(debug: bool = False) -> None:
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
+            _redact_processor,
             (
                 structlog.processors.JSONRenderer()
                 if not debug
