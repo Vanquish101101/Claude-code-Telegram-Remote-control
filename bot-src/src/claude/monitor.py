@@ -210,7 +210,7 @@ class ToolMonitor:
             and hasattr(self.config, "claude_disallowed_tools")
             and self.config.claude_disallowed_tools
         ):
-            if tool_name in self.config.claude_disallowed_tools:
+            if _tool_matches(tool_name, self.config.claude_disallowed_tools):
                 violation = {
                     "type": "explicitly_disallowed_tool",
                     "tool_name": tool_name,
@@ -359,7 +359,7 @@ class ToolMonitor:
             hasattr(self.config, "claude_disallowed_tools")
             and self.config.claude_disallowed_tools
         ):
-            if tool_name in self.config.claude_disallowed_tools:
+            if _tool_matches(tool_name, self.config.claude_disallowed_tools):
                 return False
 
         return True

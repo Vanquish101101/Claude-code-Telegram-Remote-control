@@ -49,7 +49,11 @@ async def security_middleware(
     message = event.effective_message
     if message and message.text and not agentic_mode:
         is_safe, violation_type = await validate_message_content(
-            message.text, security_validator, user_id, audit_logger
+            message.text,
+            security_validator,
+            user_id,
+            audit_logger,
+            disable_patterns=getattr(settings, "disable_security_patterns", False),
         )
         if not is_safe:
             await message.reply_text(
@@ -89,9 +93,23 @@ async def security_middleware(
 
 
 async def validate_message_content(
-    text: str, security_validator: Any, user_id: int, audit_logger: Any
+    text: str,
+    security_validator: Any,
+    user_id: int,
+    audit_logger: Any,
+    disable_patterns: bool = False,
 ) -> tuple[bool, str]:
-    """Validate message text content for security threats."""
+    """Validate message text content for security threats.
+
+    These patterns defend against a hostile user typing into the chat. When the
+    allowlist contains only the machine's own owner there is no such user, and
+    the patterns instead reject ordinary messages: any .ru link, any text in
+    backticks, anything containing `../`. DISABLE_SECURITY_PATTERNS exists for
+    exactly that situation but was never wired up here — the flag only reached
+    SecurityValidator, so the checks below fired regardless of it.
+    """
+    if disable_patterns:
+        return True, ""
 
     # Check for command injection patterns
     dangerous_patterns = [
