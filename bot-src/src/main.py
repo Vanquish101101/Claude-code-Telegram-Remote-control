@@ -65,6 +65,28 @@ def _redact(text: str) -> str:
     return text
 
 
+def _redact_arg(value: Any) -> Any:
+    """Redact one logging argument without breaking its format specifier.
+
+    Numbers are returned untouched: httpx logs the HTTP status through %d, and
+    replacing it with a string makes the record fail to format, after which the
+    logging module silently drops it.
+
+    Everything else is rendered to text and redacted, including objects. That
+    matters because httpx passes the request URL as an httpx.URL instance, not a
+    str — an isinstance(str) check let the token through unmasked.
+    """
+    if isinstance(value, bool) or isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        return _redact(value)
+    text = str(value)
+    redacted = _redact(text)
+    # Only substitute when something was actually masked, so ordinary objects
+    # keep whatever repr their format specifier expects.
+    return redacted if redacted != text else value
+
+
 class RedactingFilter(logging.Filter):
     """Strips secrets from log records before anything writes them out.
 
@@ -76,20 +98,11 @@ class RedactingFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.msg, str):
             record.msg = _redact(record.msg)
-        # Only touch string arguments. Casting everything to str broke records
-        # whose format string uses %d — httpx logs the HTTP status that way, so
-        # every "HTTP Request: ..." line silently vanished instead of being
-        # redacted, which looked like the bot had stopped polling.
         if record.args:
             if isinstance(record.args, dict):
-                record.args = {
-                    k: (_redact(v) if isinstance(v, str) else v)
-                    for k, v in record.args.items()
-                }
+                record.args = {k: _redact_arg(v) for k, v in record.args.items()}
             else:
-                record.args = tuple(
-                    _redact(a) if isinstance(a, str) else a for a in record.args
-                )
+                record.args = tuple(_redact_arg(a) for a in record.args)
         return True
 
 

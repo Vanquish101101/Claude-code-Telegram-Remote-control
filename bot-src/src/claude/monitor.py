@@ -7,6 +7,7 @@ Features:
 - Bash directory boundary enforcement
 """
 
+import fnmatch
 import shlex
 from collections import defaultdict
 from pathlib import Path
@@ -18,6 +19,21 @@ from ..config.settings import Settings
 from ..security.validators import SecurityValidator
 
 logger = structlog.get_logger()
+
+
+def _tool_matches(tool_name: str, patterns: List[str]) -> bool:
+    """Match a tool name against an allow/deny list that may contain wildcards.
+
+    The lists are written with entries like `mcp__supabase__*`, but the checks
+    used plain membership, so a wildcard entry only ever matched a tool literally
+    named `mcp__supabase__*`. Every MCP tool was therefore rejected no matter what
+    the configuration said, while entries without a wildcard worked — which made
+    the failure look arbitrary.
+    """
+    for pattern in patterns:
+        if pattern == tool_name or fnmatch.fnmatchcase(tool_name, pattern):
+            return True
+    return False
 
 # Commands that modify the filesystem and should have paths checked
 _FS_MODIFYING_COMMANDS: Set[str] = {
@@ -177,7 +193,7 @@ class ToolMonitor:
             and hasattr(self.config, "claude_allowed_tools")
             and self.config.claude_allowed_tools
         ):
-            if tool_name not in self.config.claude_allowed_tools:
+            if not _tool_matches(tool_name, self.config.claude_allowed_tools):
                 violation = {
                     "type": "disallowed_tool",
                     "tool_name": tool_name,
@@ -335,7 +351,7 @@ class ToolMonitor:
             hasattr(self.config, "claude_allowed_tools")
             and self.config.claude_allowed_tools
         ):
-            if tool_name not in self.config.claude_allowed_tools:
+            if not _tool_matches(tool_name, self.config.claude_allowed_tools):
                 return False
 
         # Check disallowed list
