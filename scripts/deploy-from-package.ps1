@@ -60,7 +60,16 @@ $npxToBin = @{
 
 Write-Host "=== MCP servers ===" -ForegroundColor Cyan
 
+# 2026-08-04 FIX (ловушка, переданная из сессии Digital Brain/Hermes):
+# раньше $sources состоял ТОЛЬКО из замороженных источников на E: и F:, поэтому запуск
+# скрипта молча ОТКАТЫВАЛ текущий эталон C:\MCP\config\mcp-servers.json к старому состоянию
+# (knowledge-factory возвращался на stdio + путь E:\Digital brain вместо рабочего SSE :8803;
+# после отключения F: пропадали smithery и knowledge-factory целиком).
+# Заголовок скрипта обещает "master is the single source of truth" — теперь это правда:
+# действующий эталон стоит ПЕРВЫМ, а цикл ниже оставляет первое вхождение каждого сервера.
+# Старые E:/F: источники лишь ДОБИРАЮТ то, чего в эталоне нет, и ничего в нём не перетирают.
 $sources = @(
+    (Join-Path $McpHome "config\mcp-servers.json"),   # действующий эталон — источник истины
     (Join-Path $Package "claude-global-config\settings.json"),
     # smithery + knowledge-factory postdate the package; they exist only in the
     # old profile on F:.
